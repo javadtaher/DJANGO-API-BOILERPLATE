@@ -15,7 +15,7 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from the appropriate .env file
-environment = 'prod'
+environment = 'dev'
 load_dotenv(dotenv_path=f'{environment}.env')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -86,7 +86,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler',
+    'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler.exception_handler',
     'DEFAULT_THROTTLE_RATES': {
         'anon': '5/minute',
         'user': '5/minute',

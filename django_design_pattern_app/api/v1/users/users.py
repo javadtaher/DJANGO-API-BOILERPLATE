@@ -8,6 +8,7 @@ from django_design_pattern_app.repositories.users_repo import UsersRepo
 from django_design_pattern_app.middleware.response import APIResponse
 from django_design_pattern_app.permissions import permissions
 from django_design_pattern_app.permissions.permissions import IsSuperUser
+from django_design_pattern_app.serializers.users.users_serializers import UserInfoUpdateSerializer
 
 
 class BaseView(APIView, AutoSchema):
@@ -15,13 +16,12 @@ class BaseView(APIView, AutoSchema):
 
 
 class IndexView(BaseView, generics.GenericAPIView):
-    # permission_classes = (permissions.IsAuthenticated, IsSuperUser)
-    # serializer_class = UserInfoUpdateSerializer
+    permission_classes = (permissions.IsAuthenticated, IsSuperUser)
+    serializer_class = UserInfoUpdateSerializer
 
     @validate_serializer()
     @handle_exceptions
     def get(self, request):
-
         """
         This is a test view, which is used to test the health of other services.
         It calls the database, minio, and elasticsearch.

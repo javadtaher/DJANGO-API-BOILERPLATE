@@ -19,17 +19,11 @@ class IndexView(BaseView, generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated, IsSuperUser)
     serializer_class = UserInfoUpdateSerializer
 
-    @validate_serializer()
     @handle_exceptions
     def get(self, request):
         """
         This is a test view, which is used to test the health of other services.
         It calls the database, minio, and elasticsearch.
         """
-        print("Starting... Call  database  ")
         self.user_repo.get_user_by_id(request.user.id)
-        print("Starting... Call minio ")
-        self.user_repo.minio_find()
-        print("Starting... Call elasticsearch ")
-        self.user_repo.elk_search()
         return APIResponse(data=True)

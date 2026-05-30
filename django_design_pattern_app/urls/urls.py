@@ -4,8 +4,6 @@ from .users import user_url
 
 
 urlpatterns = [
-
     path('', include(user_url)),
-    # Admin
     path('', include(admin_url)),
 ]

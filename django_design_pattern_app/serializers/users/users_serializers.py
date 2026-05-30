@@ -55,13 +55,13 @@ class UserInfoUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Users
-        fields = ['first_name', 'last_name', 'state', 'city']
+        fields = ['first_name', 'last_name', 'job', 'state', 'city']
 
 
 class UserGetInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ['first_name', 'last_name', 'state', 'city']
+        fields = ['first_name', 'last_name', 'job', 'state', 'city']
 
 
 class UserLoginSerializer(serializers.Serializer):

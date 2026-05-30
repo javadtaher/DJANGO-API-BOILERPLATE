@@ -31,7 +31,7 @@ class UsersRepo(BaseRepo):
         Returns:
             str: The object name.
         """
-        return self.service_minio.find_object("", "")
+        return self.service_minio.new_find_object("")
 
     @staticmethod
     def log_sms(phone_number: str, message: str):

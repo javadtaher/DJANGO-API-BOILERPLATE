@@ -94,4 +94,4 @@ class ValidateAndHandleErrors(APIView):
 
                 return APIResponse(data="", error_code=1, status=500)
 
-        return None
+        return APIResponse(data="", success_code=2000, status=200)

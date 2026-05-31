@@ -48,11 +48,11 @@ class ValidateAndHandleErrors(APIView):
                     for error_detail in value:
                         if isinstance(error_detail, ErrorDetail):
                             if error_detail.code == 'blank':
-                                return APIResponse(data="", error_code=1004, status=404)
+                                return APIResponse(data="", error_code=1004, status=404, error_description=str(error_detail))
                             if error_detail.code == 'max_length':
-                                return APIResponse(data="", error_code=1006, status=404)
+                                return APIResponse(data="", error_code=1006, status=404, error_description=str(error_detail))
                             if error_detail.code == 'required':
-                                return APIResponse(data="", error_code=1004, status=404)
+                                return APIResponse(data="", error_code=1004, status=404, error_description=str(error_detail))
                             if error_detail.code == 'invalid':
                                 return APIResponse(data="", error_code=1000, status=404)
                             if error_detail.code == 'unique':

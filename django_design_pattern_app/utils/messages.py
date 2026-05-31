@@ -5,7 +5,6 @@ class ErrorMessage:
     errors = {
         0: "This error must be handled by us.",
         1: "Error",
-        1004: "This field is required.",
     }
 
 

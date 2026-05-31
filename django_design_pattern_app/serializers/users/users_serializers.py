@@ -7,8 +7,8 @@ class UserInfoUpdateSerializer(serializers.ModelSerializer):
         # allow_blank=True,
         max_length=100,
         error_messages={
-            'required': 'Please provide your last name.',
-            'blank': 'Last name should not be blank.',
+            'required': 'Please provide your first name.',
+            'blank': 'first name should not be blank.',
             'max_length': 'message length is larger'
         }
     )
@@ -37,8 +37,8 @@ class UserInfoUpdateSerializer(serializers.ModelSerializer):
         # allow_blank=True,
         max_length=100,
         error_messages={
-            'required': 'Please select your province.',
-            'blank': 'Province should not be blank.',
+            'required': 'Please select your state.',
+            'blank': 'State should not be blank.',
             'max_length': 'message length is larger'
         }
     )

@@ -1,6 +1,22 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils.text import gettext_lazy as _
+from django_design_pattern_app.models import Users
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=4)
+
+    class Meta:
+        model = Users
+        fields = ['username', 'password']
+
+    def create(self, validated_data):
+        user = Users.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password']
+        )
+        return user
 
 
 class RefreshTokenSerializer(serializers.Serializer):

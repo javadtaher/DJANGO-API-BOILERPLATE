@@ -19,6 +19,7 @@ class IndexView(BaseView, generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated, IsSuperUser)
     serializer_class = UserInfoUpdateSerializer
 
+    @validate_serializer()
     @handle_exceptions
     def get(self, request):
         """

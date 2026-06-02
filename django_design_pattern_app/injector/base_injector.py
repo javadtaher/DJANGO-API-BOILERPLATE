@@ -13,6 +13,5 @@ BaseInjector = Injector(
         RedisModule,
         RabbitMQModule,
         KavenegarModule(os.getenv('KAVENEGAR_KEY'))
-
     ]
 )

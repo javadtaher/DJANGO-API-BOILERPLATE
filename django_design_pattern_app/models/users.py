@@ -31,6 +31,12 @@ class Users(ExportModelOperationsMixin("users"), AbstractUser, BaseModel):
     username = models.CharField(
         max_length=150, unique=True, null=True, blank=True, verbose_name="username", name="username"
     )
+    email = models.EmailField(null=True, blank=True)
+    first_name = models.CharField(max_length=100, null=True, blank=True)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
+    job = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
     password = models.CharField(max_length=128, null=True, blank=True)
 
     # groups = models.ManyToManyField(

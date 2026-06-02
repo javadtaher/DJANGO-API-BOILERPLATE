@@ -17,7 +17,14 @@ class APIResponse(JsonResponse):
         """
         content = {'error': {}, "success": {}, 'data': data}
         if error_code:
-            content['error'] = {'code': error_code, 'description': error_description if error_description else ErrorMessage.errors.get(error_code, "")}
+            content['error'] = {
+                'code': error_code,
+                'description': error_description if error_description
+                else ErrorMessage.errors.get(error_code, "")
+            }
         if success_code:
-            content['success'] = {'code': success_code, 'description': SuccessMessage.success.get(success_code, "")}
+            content['success'] = {
+                'code': success_code,
+                'description': SuccessMessage.success.get(success_code, "")
+            }
         super().__init__(content, status=status, content_type=content_type)

@@ -35,6 +35,14 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 
 AUTH_USER_MODEL = 'django_design_pattern_app.Users'
 
+# Email Settings
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -47,7 +55,7 @@ INSTALLED_APPS = [
     'django_design_pattern_app',
     'corsheaders',
     'rest_framework',
-
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -84,7 +92,7 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'django_design_pattern_app.authentication.BlacklistJWTAuthentication',
     ],
     'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler.exception_handler',
     'DEFAULT_THROTTLE_RATES': {

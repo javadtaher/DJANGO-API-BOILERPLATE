@@ -54,15 +54,15 @@ class ValidateAndHandleErrors(APIView):
                             if error_detail.code == 'required':
                                 return APIResponse(data="", error_code=1004, status=404, error_description=str(error_detail))
                             if error_detail.code == 'invalid':
-                                return APIResponse(data="", error_code=1000, status=404)
+                                return APIResponse(data="", error_code=1000, status=404, error_description=str(error_detail))
                             if error_detail.code == 'unique':
-                                return APIResponse(data="", error_code=1007, status=404)
+                                return APIResponse(data="", error_code=1007, status=404, error_description=str(error_detail))
                             if error_detail.code == 'password_mismatch':
                                 return APIResponse(data="", error_code=1008, status=404)
                             if error_detail.code == 'invalid_choice':
                                 return APIResponse(data="", error_code=1009, status=404)
                             if error_detail.code == 'min_length':
-                                return APIResponse(data="", error_code=1010, status=404)
+                                return APIResponse(data="", error_code=1010, status=404, error_description=str(error_detail))
                             if error_detail.code == 'invalid_image':
                                 return APIResponse(data="", error_code=1011, status=404)
                             if error_detail.code == 'max_value':
@@ -94,4 +94,4 @@ class ValidateAndHandleErrors(APIView):
 
                 return APIResponse(data="", error_code=1, status=500)
 
-        return APIResponse(data="", success_code=2000, status=200)
+        return None

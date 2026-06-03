@@ -37,6 +37,7 @@ class Users(ExportModelOperationsMixin("users"), AbstractUser, BaseModel):
     job = models.CharField(max_length=100, null=True, blank=True)
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=100, null=True, blank=True)
+    avatar = models.CharField(max_length=500, null=True, blank=True)
     password = models.CharField(max_length=128, null=True, blank=True)
 
     # groups = models.ManyToManyField(

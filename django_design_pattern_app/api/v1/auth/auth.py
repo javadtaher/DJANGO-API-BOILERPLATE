@@ -1,3 +1,5 @@
+import random
+
 from django.contrib.auth import authenticate
 from django.core.cache import cache
 from rest_framework import generics, status
@@ -60,6 +62,7 @@ class UserLoginView(BaseView, generics.GenericAPIView):
             'message': 'username or password is wrong'
         }, error_code=1, status=401)
 
+
 class EditUserView(BaseView, generics.GenericAPIView):
     serializer_class = UserInfoUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -80,49 +83,69 @@ class UserForgetPassView(BaseView, generics.GenericAPIView):
     @validate_serializer()
     @handle_exceptions
     def post(self, request):
-        user = Users.objects.filter(email=request.data.get('email')) or Users.objects.filter(
-            username=request.data.get('username'))
-        if user:
-            user = Users.objects.get(email=request.data.get('email')) or Users.objects.get(
-                username=request.data.get('username'))
-            refresh = RefreshToken.for_user(user)
-            return APIResponse(data={
-                "user": user.username,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-            }, success_code=2000, status=200)
-        return APIResponse(data="please enter valid email or username !!!", error_code=1000, status=401)
+        email = request.data.get('email')
+        username = request.data.get('username')
+
+        user = None
+        if email:
+            try:
+                user = Users.objects.get(email=email)
+            except Users.DoesNotExist:
+                pass
+        elif username:
+            try:
+                user = Users.objects.get(username=username)
+            except Users.DoesNotExist:
+                pass
+
+        if not user:
+            return APIResponse(data="please enter valid email or username !!!", error_code=1000, status=401)
+
+        new_password = f"{random.randint(0, 999999):06d}"
+        user.set_password(new_password)
+        user.save()
+
+        Send_Email(to=user.email, subject="password reset", body=f"your new password: {new_password}")
+
+        return APIResponse(data={
+            'message': 'new password sent to your email'
+        }, success_code=2000)
 
 
 class UserEditPassView(BaseView, generics.GenericAPIView):
     serializer_class = UserEditPasswordSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
 
     @validate_serializer()
     @handle_exceptions
-    def post(self, request):
-        user = Users.objects.get(username=request.user.username)
-        if user:
-            if user.password != request.data.get('new_password'):
-                user.set_password(request.data.get('new_password'))
-                user.save()
-                content = f"your password has been changed"
-                Send_Email(to=user.email, subject="change password", body=content)
-                access_str = request.headers.get('Authorization', '').replace('Bearer ', '')
-                if access_str:
-                    access = AccessToken(access_str)
-                    cache.set(f'blacklist_access_{access["jti"]}', True, timeout=300)
-                refresh = RefreshToken(request.data.get('refresh'))
-                refresh.blacklist()
-                return APIResponse(data={
-                    'user': user.username,
-                    'message': 'your password has been changed'
-                }, success_code=2000)
-            return APIResponse(data={
-                'user': user.username,
-                'message': 'please enter new password'
-            })
+    def post(self, request, username=None):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user = Users.objects.get(username=username)
+        except Users.DoesNotExist:
+            return APIResponse(data="user not found", error_code=1000, status=404)
+
+        if not user.check_password(serializer.validated_data['old_password']):
+            return APIResponse(data="old password is incorrect", error_code=1000, status=401)
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+
+        Send_Email(to=user.email, subject="change password", body="your password has been changed")
+
+        access_str = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if access_str:
+            access = AccessToken(access_str)
+            cache.set(f'blacklist_access_{access["jti"]}', True, timeout=300)
+
+        refresh_str = request.data.get('refresh')
+        if refresh_str:
+            refresh = RefreshToken(refresh_str)
+            refresh.blacklist()
+
         return APIResponse(data={
             'user': user.username,
-            'message': 'confirm password not matched'
-            })
+            'message': 'your password has been changed'
+        }, success_code=2000)

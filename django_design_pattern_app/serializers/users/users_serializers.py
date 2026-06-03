@@ -57,15 +57,27 @@ class UserInfoUpdateSerializer(serializers.ModelSerializer):
         }
     )
 
+    avatar = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        max_length=500,
+    )
+
     class Meta:
         model = Users
-        fields = ['email', 'first_name', 'last_name', 'job', 'state', 'city']
+        fields = ['email', 'first_name', 'last_name', 'job', 'state', 'avatar', 'city']
 
 
-class UserGetInfoSerializer(serializers.ModelSerializer):
+class UserGetAvatarSerializer(serializers.ModelSerializer):
+    avatar = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        max_length=500,
+    )
+
     class Meta:
         model = Users
-        fields = ['email', 'first_name', 'last_name', 'job', 'state', 'city']
+        fields = ['avatar']
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -115,6 +127,12 @@ class UserForgetPasswordSerializer(serializers.Serializer):
 
 
 class UserEditPasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(
+        required=True,
+        error_messages={
+            'required': 'Required field',
+        }
+    )
     new_password = serializers.CharField(
         required=True,
         min_length=8,
@@ -139,7 +157,7 @@ class UserEditPasswordSerializer(serializers.Serializer):
 
     class Meta:
         model = Users
-        fields = ['new_password', 'confirm_password']
+        fields = ['old_password', 'new_password', 'confirm_password']
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):

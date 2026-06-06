@@ -58,7 +58,7 @@ class ValidateAndHandleErrors(APIView):
                             if error_detail.code == 'unique':
                                 return APIResponse(data="", error_code=1007, status=404, error_description=str(error_detail))
                             if error_detail.code == 'password_mismatch':
-                                return APIResponse(data="", error_code=1008, status=404)
+                                return APIResponse(data="", error_code=1008, status=404, error_description=str(error_detail))
                             if error_detail.code == 'invalid_choice':
                                 return APIResponse(data="", error_code=1009, status=404)
                             if error_detail.code == 'min_length':
@@ -91,6 +91,12 @@ class ValidateAndHandleErrors(APIView):
                                 return APIResponse(data="", error_code=1021, status=404)
                             if error_detail.code == 'empty':
                                 return APIResponse(data="", error_code=1030, status=404)
+                            if error_detail.code == 'invalid_credentials':
+                                return APIResponse(data="", error_code=1022, status=401, error_description=str(error_detail))
+                            if error_detail.code == 'no_identifier':
+                                return APIResponse(data="", error_code=1023, status=400, error_description=str(error_detail))
+                            if error_detail.code == 'user_not_found':
+                                return APIResponse(data="", error_code=1024, status=404, error_description=str(error_detail))
 
                 return APIResponse(data="", error_code=1, status=500)
 

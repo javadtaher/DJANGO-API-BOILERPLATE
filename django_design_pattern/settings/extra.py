@@ -17,6 +17,11 @@ MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
 MINIO_SECURE = os.getenv('MINIO_SECURE')
 
 # =============================================================================
-# TODO
+# CELERY CONFIGURATION
 # =============================================================================
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+# CELERY_TASK_ALWAYS_EAGER = True  # Only for dev without Redis
 

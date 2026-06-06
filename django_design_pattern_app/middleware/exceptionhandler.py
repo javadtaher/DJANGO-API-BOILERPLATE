@@ -40,6 +40,7 @@ def custom_exception_handler(exc, context):
         'NotAuthenticated': _handle_authentication_error,
         'ParseError': _handle_json_parser_error,
         'InvalidToken': _handle_simple_jwt_auth_error,
+        'Throttled': _handle_throttled_error,
     }
 
     response = exception_handler(exc, context)
@@ -164,9 +165,14 @@ def _handle_http500_error(exc, context, response):
     Parameters:
         exc (Exception): The Http500 exception object
         context (dict): The context dictionary
-        response (Response): The response object
+        response (Response): The original response object
 
     Returns:
         response (Response): The original response object
     """
     return response
+
+
+def _handle_throttled_error(exc, context, response):
+    from django_design_pattern_app.middleware.response import APIResponse
+    return APIResponse(data="", error_code=1025, status=429, error_description="تعداد درخواست ها زیاد بوده لطفا بعدا امتحان کنین")

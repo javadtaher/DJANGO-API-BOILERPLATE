@@ -94,10 +94,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'django_design_pattern_app.authentication.BlacklistJWTAuthentication',
     ],
-    'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler.exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'django_design_pattern_app.utils.throttle.CustomAnonRateThrottle',
+        'django_design_pattern_app.utils.throttle.CustomUserRateThrottle',
+    ],
+    'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler.custom_exception_handler',
     'DEFAULT_THROTTLE_RATES': {
         'anon': '5/minute',
-        'user': '5/minute',
+        'user': '10/minute',
     },
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',

@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django_design_pattern_app.models import Users
 import os
 
+
 class Command(BaseCommand):
     help = 'Creates a superuser'
 
@@ -21,6 +22,7 @@ class Command(BaseCommand):
             Users.objects.create_superuser(
                 username=os.getenv("SUPERUSER_USERNAME"),
                 email=os.getenv("SUPERUSER_EMAIL"),
+                phone=os.getenv("SUPERUSER_PHONE"),
                 password=os.getenv("SUPERUSER_PASSWORD"),
                 is_superuser=True,
             )

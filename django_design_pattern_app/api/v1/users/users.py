@@ -45,17 +45,22 @@ class AvatarUploadView(BaseView, generics.GenericAPIView):
         if not file:
             return APIResponse(data="no file uploaded", error_code=1, status=400)
 
-        minio_sdk = self.user_repo.service_minio
+        ext = file.name.split('.')[-1].lower()
+        allowed = {'jpg', 'jpeg', 'png'}
+        if ext not in allowed:
+            return APIResponse(data="only jpg, jpeg, png, gif, webp allowed", error_code=1, status=400)
+
+        max_size = 2 * 1024 * 1024
+        if file.size > max_size:
+            return APIResponse(data="file size must be less than 2MB", error_code=1, status=400)
+
         bucket = os.getenv("BUCKET_NAME")
 
-        # ensure bucket exists
-        minio_sdk.create_bucket(bucket)
+        self.user_repo.service_minio.create_bucket(bucket)
 
         object_name = f"users/{request.user.username}/{file.name}"
-        content = file.read()
-        minio_sdk.upload_file(bucket, object_name, content)
+        self.user_repo.service_minio.upload_file(bucket, object_name, file.read())
 
-        # save object name in user model
         request.user.avatar = object_name
         request.user.save(update_fields=['avatar'])
 
@@ -85,3 +90,41 @@ class AvatarDownloadView(BaseView, generics.GenericAPIView):
         from django.http import HttpResponse
         ext = user.avatar.split('.')[-1] if '.' in user.avatar else 'jpg'
         return HttpResponse(file_bytes, content_type=f"image/{ext}")
+
+
+class AvatarDeleteView(BaseView, generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserGetAvatarSerializer
+
+    @handle_exceptions
+    def delete(self, request):
+        user = request.user
+        filename = request.GET.get('filename')
+
+        minio_sdk = self.user_repo.service_minio
+        bucket = os.getenv("BUCKET_NAME")
+        prefix = f"users/{user.username}/"
+
+        if filename:
+            object_name = f"{prefix}{filename}"
+            minio_sdk.delete_object(bucket, object_name)
+        else:
+            if not user.avatar:
+                return APIResponse(data="no avatar", error_code=1, status=404)
+            minio_sdk.delete_object(bucket, user.avatar)
+
+        remaining = minio_sdk.search_objects(bucket, prefix=prefix, recursive=True)
+
+        latest = None
+        for obj in remaining:
+            if latest is None or obj.last_modified > latest.last_modified:
+                latest = obj
+
+        if latest:
+            user.avatar = latest.object_name
+        else:
+            user.avatar = None
+
+        user.save(update_fields=['avatar'])
+
+        return APIResponse(data="avatar deleted", success_code=2000)

@@ -7,15 +7,15 @@ from django.contrib.auth.base_user import BaseUserManager
 
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, username, password=None, **extra_fields):
+    def create_user(self, username, email, phone, password=None, **extra_fields):
         if not username:
             raise ValueError('The Username field must be set')
-        user = self.model(username=username, **extra_fields)
+        user = self.model(username=username,email=email, phone=phone, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, username, password=None, **extra_fields):
+    def create_superuser(self, username, email, phone, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
@@ -24,21 +24,22 @@ class CustomUserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        return self.create_user(username, password, **extra_fields)
+        return self.create_user(username, password, email, phone, **extra_fields)
 
 
 class Users(ExportModelOperationsMixin("users"), AbstractUser, BaseModel):
     username = models.CharField(
-        max_length=150, unique=True, null=True, blank=True, verbose_name="username", name="username"
+        max_length=150, unique=True, verbose_name="username", name="username"
     )
-    email = models.EmailField(null=True, blank=True)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=15, unique=True)
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     job = models.CharField(max_length=100, null=True, blank=True)
     state = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=100, null=True, blank=True)
     avatar = models.CharField(max_length=500, null=True, blank=True)
-    password = models.CharField(max_length=128, null=True, blank=True)
+    password = models.CharField(max_length=128)
 
     # groups = models.ManyToManyField(
     #     Group,
@@ -59,9 +60,9 @@ class Users(ExportModelOperationsMixin("users"), AbstractUser, BaseModel):
     # )
 
     objects = CustomUserManager()
-
+    # email . mobile, username
     USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['email', 'phone']
 
     def __str__(self) -> str:
         """

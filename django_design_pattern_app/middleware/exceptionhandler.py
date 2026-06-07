@@ -175,4 +175,13 @@ def _handle_http500_error(exc, context, response):
 
 def _handle_throttled_error(exc, context, response):
     from django_design_pattern_app.middleware.response import APIResponse
-    return APIResponse(data="", error_code=1025, status=429, error_description="تعداد درخواست ها زیاد بوده لطفا بعدا امتحان کنین")
+
+    wait_seconds = exc.wait  # مثلاً ۷۲۰۰
+    wait_minutes = wait_seconds // 60 if wait_seconds else 0
+
+    return APIResponse(
+        data={"wait": wait_seconds},
+        error_code=1025,
+        status=429,
+        error_description=f"تعداد درخواست ها زیاد بوده. {wait_minutes} دقیقه دیگه امتحان کن"
+    )

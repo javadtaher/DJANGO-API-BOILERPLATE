@@ -95,8 +95,8 @@ REST_FRAMEWORK = {
         'django_design_pattern_app.authentication.BlacklistJWTAuthentication',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
-        'django_design_pattern_app.utils.throttle.CustomAnonRateThrottle',
-        'django_design_pattern_app.utils.throttle.CustomUserRateThrottle',
+        'django_design_pattern_app.utils.throttle.CooldownAnonRateThrottle',
+        'django_design_pattern_app.utils.throttle.CooldownUserRateThrottle',
     ],
     'EXCEPTION_HANDLER': 'django_design_pattern_app.middleware.exceptionhandler.custom_exception_handler',
     'DEFAULT_THROTTLE_RATES': {

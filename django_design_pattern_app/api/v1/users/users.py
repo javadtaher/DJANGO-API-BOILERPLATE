@@ -39,7 +39,7 @@ class AvatarUploadView(BaseView, generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserGetAvatarSerializer
 
-    @handle_exceptions
+    # @handle_exceptions
     def post(self, request):
         file = request.FILES.get('avatar')
         if not file:

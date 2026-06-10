@@ -83,11 +83,13 @@ class UserForgetPassView(BaseView, generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
 
+        new_password = f"{random.randint(0, 999999):06d}"
+        user.set_password(new_password)
+        user.save()
         if not user.is_superuser:
-            new_password = f"{random.randint(0, 999999):06d}"
-            user.set_password(new_password)
-            user.save()
             send_email_task.delay(to=user.email, subject="password reset", body=f"your code: {new_password}")
+        else:
+            print(f"new password: {new_password}")
 
         return APIResponse(data={
             'message': 'code sent to your email'

@@ -28,6 +28,7 @@ class CustomUserManager(BaseUserManager):
 
 
 class Users(ExportModelOperationsMixin("users"), AbstractUser, BaseModel):
+    rule_id = models.IntegerField(blank=True, null=True)
     username = models.CharField(
         max_length=150, unique=True, verbose_name="username", name="username"
     )

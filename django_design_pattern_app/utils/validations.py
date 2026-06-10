@@ -66,9 +66,9 @@ class ValidateAndHandleErrors(APIView):
                             if error_detail.code == 'invalid_image':
                                 return APIResponse(data="", error_code=1011, status=404)
                             if error_detail.code == 'max_value':
-                                return APIResponse(data="", error_code=1006, status=404)
+                                return APIResponse(data="", error_code=1006, status=404, error_description=str(error_detail))
                             if error_detail.code == 'min_value':
-                                return APIResponse(data="", error_code=1010, status=404)
+                                return APIResponse(data="", error_code=1010, status=404, error_description=str(error_detail))
                             if error_detail.code == 'mobile_length':
                                 return APIResponse(data="", error_code=1013, status=404)
                             if error_detail.code == 'mobile_value':
@@ -86,7 +86,7 @@ class ValidateAndHandleErrors(APIView):
                             if error_detail.code == 'arch_invalid':
                                 return APIResponse(data="", error_code=1019, status=404)
                             if error_detail.code == 'null':
-                                return APIResponse(data="", error_code=1004, status=404)
+                                return APIResponse(data="", error_code=1004, status=404, error_description=str(error_detail))
                             if error_detail.code == 'invalid_mobile':
                                 return APIResponse(data="", error_code=1021, status=404)
                             if error_detail.code == 'empty':
@@ -97,6 +97,8 @@ class ValidateAndHandleErrors(APIView):
                                 return APIResponse(data="", error_code=1023, status=400, error_description=str(error_detail))
                             if error_detail.code == 'user_not_found':
                                 return APIResponse(data="", error_code=1024, status=404, error_description=str(error_detail))
+                            if error_detail.code == 'no_permission':
+                                return APIResponse(data="", error_code=1050, status=403, error_description=str(error_detail))
 
                 return APIResponse(data="", error_code=1, status=500)
 

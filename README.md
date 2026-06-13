@@ -63,7 +63,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 - **Custom Authentication** using JWT (SimpleJWT) with token blacklisting
 - **Custom Exception Handling** with Persian error messages and structured JSON error codes
 - **Request Validation** via decorator pattern (`@validate_serializer`)
-- **Throttling / Rate Limiting** with Persian error messages (429)
+- **Throttling / Rate Limiting** with Redis-backed cooldown (burst then block)
 - **Dependency Injection** using `injector` library for modularity & testability
 - **Pydantic Schemas** for data integrity and validation
 - **Pagination, Filtering, Caching** built-in patterns
@@ -73,6 +73,11 @@ A modular, production-ready Django REST API template with clean architecture pat
 - **Comprehensive Middleware** for exception handling and standardized API responses
 - **Custom Signals** for event-driven actions
 - **Avatar Management** with MinIO storage (upload, download, delete)
+- **Category & Product Tree** — hierarchical categories with slug-based URL traversal
+- **Role-Based Access Control** — Admin, Editor, Support roles with granular permissions
+- **User State Management** — promote/demote users between roles (Super Editor, Support)
+- **Redis Cache Backend** — persistent cache across server restarts
+- **Throttle Cooldown** — automatic cooldown period after exceeding rate limit
 
 ---
 
@@ -94,7 +99,11 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   ├── api/v1/
 │   │   ├── auth/auth.py                # Register, Login, Forgot/Edit Password
 │   │   ├── users/users.py              # Index, Avatar CRUD
-│   │   └── admin/users.py              # Admin endpoints (empty)
+│   │   ├── admin/users.py              # Admin endpoints (ManageEditor, ManageSupport)
+│   │   └── products/                   # Category & Product endpoints
+│   │       ├── __init__.py
+│   │       ├── categories.py           # ManageCategoryView (add/delete)
+│   │       └── products.py             # ManageProductView, CategoryTreeView
 │   │
 │   ├── cache/
 │   │   ├── cache_decorators.py         # Redis caching decorators
@@ -119,7 +128,8 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │
 │   ├── models/
 │   │   ├── base.py                     # BaseModel (created_at, updated_at)
-│   │   └── users.py                    # Custom User model, UserManager
+│   │   ├── users.py                    # Custom User model, UserManager
+│   │   └── product.py                  # Category (tree) & Product models
 │   │
 │   ├── modules/                        # DI module bindings
 │   │   ├── elastic_module.py
@@ -129,7 +139,8 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   └── kavenegar_module.py
 │   │
 │   ├── permissions/
-│   │   └── permissions.py              # IsSuperUser, IsAuthenticated, etc.
+│   │   └── permissions.py              # IsSuperUser, IsAuthenticated, IsSupport,
+│   │                                      CanManageEditor, CanManageSupport
 │   │
 │   ├── repositories/
 │   │   ├── base_repo.py                # Base repo with MinIO + ELK injection
@@ -164,7 +175,9 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   ├── urls.py                     # App-level URL routing
 │   │   ├── auth.py                     # Auth endpoints
 │   │   ├── users.py                    # User & avatar endpoints
-│   │   └── admin/admin.py              # Admin endpoints
+│   │   ├── admins.py                   # Editor/Support management endpoints
+│   │   ├── admin/admin.py              # Admin endpoints
+│   │   └── products.py                 # Product & category endpoints
 │   │
 │   ├── utils/
 │   │   ├── helper.py                   # Date/time helpers (Unix, Jalali)
@@ -206,6 +219,11 @@ A modular, production-ready Django REST API template with clean architecture pat
 | POST | `/avatar/upload/` | `AvatarUploadView` | IsAuthenticated |
 | GET | `/avatar/<str:username>/` | `AvatarDownloadView` | AllowAny |
 | DELETE | `/avatar/delete/` | `AvatarDeleteView` | IsAuthenticated |
+| POST | `/editor/manage/` | `ManageEditorView` | IsAuthenticated + CanManageEditor |
+| POST | `/support/manage/` | `ManageSupportView` | IsAuthenticated + CanManageSupport |
+| POST | `/manage/category/` | `ManageCategoryView` | IsAuthenticated + IsAdminOrEditor |
+| POST | `/manage/product/` | `ManageProductView` | IsAuthenticated + IsAdminOrEditor |
+| GET | `/products/<path:category_path>/` | `CategoryTreeView` | AllowAny |
 
 ---
 
@@ -224,6 +242,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 | 1024 | User not found | 404 |
 | 1025 | Throttled (rate limited) | 429 |
 | 1030 | Empty | 404 |
+| 1050 | No permission / Access denied | 403 |
 
 ---
 
@@ -354,11 +373,28 @@ celery -A django_design_pattern worker -l info --pool=solo
 ### Request Flow
 
 ```
-Request → URL Router → Middleware → Permission Check → Throttle Check
+Request → URL Router → Middleware → Permission Check → Throttle Check (Redis)
   → @validate_serializer (decorator) → Serializer Validation
     → View → Service → Repository (DI) → Model/DB
       → APIResponse
 ```
+
+### Throttle & Cooldown
+
+A two-phase rate limiting system powered by Redis:
+
+- **Phase 1 (Burst):** Up to 5 requests/minute for anonymous, 10/minute for authenticated users (sliding window via DRF)
+- **Phase 2 (Cooldown):** After exceeding the burst limit, the user is blocked for 10 minutes. The remaining wait time is read directly from Redis TTL (`cache.ttl()`) and returned as seconds in the error response.
+
+### Category Tree Browsing
+
+Categories support an unlimited-depth tree via `parent` self-referencing ForeignKey. Products are browsed by traversing the URL path through category slugs:
+
+```
+/products/<slug-level-1>/<slug-level-2>/.../<slug-level-n>/
+```
+
+The view resolves each slug level by level, then collects all descendant category IDs recursively and returns all products under those categories.
 
 ### Dependency Injection
 
@@ -422,7 +458,10 @@ Central DI container wiring all service modules.
 Module definitions binding interfaces to concrete service implementations.
 
 ### `permissions/` — Access Control
-Custom permission classes for role-based and superuser access.
+Custom permission classes for role-based access: `IsSuperUser`, `IsAuthenticated`, `IsSupport`, `IsSuperUserOrAdmin`, `IsSuperUserOrEditor`, `CanManageEditor`, `CanManageSupport`.
+
+### `models/product.py` — Category & Product Models
+Hierarchical category tree with self-referencing `ForeignKey` and slug-based product browsing. Products are linked to leaf categories. Category tree supports unlimited depth.
 
 ### `cache/` — Caching Layer
 Redis-based caching decorators for improved performance.

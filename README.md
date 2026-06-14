@@ -78,6 +78,10 @@ A modular, production-ready Django REST API template with clean architecture pat
 - **User State Management** — promote/demote users between roles (Super Editor, Support)
 - **Redis Cache Backend** — persistent cache across server restarts
 - **Throttle Cooldown** — automatic cooldown period after exceeding rate limit
+- **Unified Catalog Search** — single Elasticsearch index for both products and categories
+- **Ngram Partial Search** — search every 2-3 character combination (e.g. "مو" finds "موبایل")
+- **Weighted Multi-Field Search** — prioritized fields (name, slug, description) with boost factors
+- **Recursive ES Cleanup** — deleting a category removes all descendant categories and products from ES automatically
 
 ---
 
@@ -100,10 +104,10 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   ├── auth/auth.py                # Register, Login, Forgot/Edit Password
 │   │   ├── users/users.py              # Index, Avatar CRUD
 │   │   ├── admin/users.py              # Admin endpoints (ManageEditor, ManageSupport)
-│   │   └── products/                   # Category & Product endpoints
+│   │   └── products/                   # Category, Product & Search endpoints
 │   │       ├── __init__.py
-│   │       ├── categories.py           # ManageCategoryView (add/delete)
-│   │       └── products.py             # ManageProductView, CategoryTreeView
+│   │       ├── products.py             # ManageCategoryView, ManageProductView, CategoryTreeView
+│   │       └── search.py               # CatalogSearchView (unified ES search)
 │   │
 │   ├── cache/
 │   │   ├── cache_decorators.py         # Redis caching decorators
@@ -134,6 +138,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   ├── modules/                        # DI module bindings
 │   │   ├── elastic_module.py
 │   │   ├── minio_module.py
+│   │   ├── procat_search_module.py      # CatalogSearchELK DI module
 │   │   ├── redis_module.py
 │   │   ├── rabbitmq_module.py
 │   │   └── kavenegar_module.py
@@ -147,6 +152,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   └── users_repo.py               # User data access layer
 │   │
 │   ├── schemas/
+│   │   ├── procat.py                   # CatalogIndexModel (unified product+category schema)
 │   │   └── users.py                    # Pydantic models
 │   │
 │   ├── serializers/
@@ -155,7 +161,11 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   └── admin/user_serializers.py
 │   │
 │   ├── services/
-│   │   ├── elasticsearch/              # Full-text search & indexing
+│   │   ├── elasticsearch/
+│   │   │   ├── elasticsearch.py        # Base SearchELK class
+│   │   │   └── indexing/
+│   │   │       ├── users_index.py      # User index config
+│   │   │       └── procats_index.py    # Catalog index config (ngram analyzer)
 │   │   ├── email/tasks.py              # Celery async email task
 │   │   ├── kafka/                      # Message producer & consumer
 │   │   ├── minio/minio.py              # S3-compatible object storage SDK
@@ -223,6 +233,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 | POST | `/support/manage/` | `ManageSupportView` | IsAuthenticated + CanManageSupport |
 | POST | `/manage/category/` | `ManageCategoryView` | IsAuthenticated + IsAdminOrEditor |
 | POST | `/manage/product/` | `ManageProductView` | IsAuthenticated + IsAdminOrEditor |
+| POST | `/search/` | `CatalogSearchView` | AllowAny |
 | GET | `/products/<path:category_path>/` | `CategoryTreeView` | AllowAny |
 
 ---
@@ -395,6 +406,24 @@ Categories support an unlimited-depth tree via `parent` self-referencing Foreign
 ```
 
 The view resolves each slug level by level, then collects all descendant category IDs recursively and returns all products under those categories.
+
+### Unified Catalog Search (Elasticsearch)
+
+Products and categories share a single Elasticsearch index (`catalog_index`) with a `type` field to distinguish them:
+
+```
+catalog_index
+  ├── type: "product"   — name, slug, description, price, category_slug
+  └── type: "category"  — name, slug, parent_slug, path
+```
+
+**Indexing:** Every add/delete action on products or categories automatically indexes or removes the document via `CatalogSearchELK.add()` / `.remove()`. Deleting a category triggers recursive cleanup of all descendant categories and products from ES.
+
+**Ngram partial search:** The index uses an ngram tokenizer (min_gram=2, max_gram=3) so any 2–3 character substring matches. E.g. "مو" returns "موبایل", "ما" returns "لپ‌تاپ".
+
+**Weighted search fields:** Fields have boost factors — `name^2`, `slug^4` — so matches on category/product name and slug rank higher.
+
+**Hybrid expansion:** When a search matches a category, the view also fetches all descendant products from the database and appends them to the results, enabling full subtree discovery from a single category match.
 
 ### Dependency Injection
 

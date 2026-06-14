@@ -4,14 +4,25 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 
 from django_design_pattern_app.api.v1.users.users import BaseView
+from django_design_pattern_app.injector.base_injector import BaseInjector
 from django_design_pattern_app.middleware.exceptions import handle_exceptions
 from django_design_pattern_app.middleware.response import APIResponse
 from django_design_pattern_app.middleware.validate import validate_serializer
 from django_design_pattern_app.models import Category, Product
+from django_design_pattern_app.modules.procat_search_module import CatalogSearchELK
 from django_design_pattern_app.permissions.permissions import IsAuthenticated, IsAdminOrEditor
+from django_design_pattern_app.schemas.procat import CatalogIndexModel
 
 from django_design_pattern_app.serializers.product.product_serializers import ManageCategorySerializer, \
     ManageProductSerializer
+
+
+def _get_all_descendant_ids(category_id):
+    ids = [category_id]
+    children = Category.objects.filter(parent_id=category_id).values_list('id', flat=True)
+    for child_id in children:
+        ids.extend(_get_all_descendant_ids(child_id))
+    return ids
 
 
 class CategoryTreeView(BaseView, generics.GenericAPIView):
@@ -28,7 +39,7 @@ class CategoryTreeView(BaseView, generics.GenericAPIView):
             except Category.DoesNotExist:
                 return APIResponse(data=f"category '{slug}' not found", error_code=1000, status=404)
 
-        all_ids = self._get_all_descendant_ids(parent.id)
+        all_ids = _get_all_descendant_ids(parent.id)
         products = Product.objects.filter(category_id__in=all_ids)
 
         return APIResponse(data={
@@ -39,13 +50,6 @@ class CategoryTreeView(BaseView, generics.GenericAPIView):
                 for p in products
             ]
         }, success_code=2000)
-
-    def _get_all_descendant_ids(self, category_id):
-        ids = [category_id]
-        children = Category.objects.filter(parent_id=category_id).values_list('id', flat=True)
-        for child_id in children:
-            ids.extend(self._get_all_descendant_ids(child_id))
-        return ids
 
 
 class ManageCategoryView(BaseView, generics.GenericAPIView):
@@ -72,17 +76,32 @@ class ManageCategoryView(BaseView, generics.GenericAPIView):
                         error_code=1, status=404
                     )
 
-            Category.objects.create(name=name, slug=slug, parent=parent)
+            category = Category.objects.create(name=name, slug=slug, parent=parent)
+            es = BaseInjector.get(CatalogSearchELK)
+            es.add(
+                id=f"c_{category.id}",
+                doc_data=CatalogIndexModel(
+                    id=category.id, type="category",
+                    name=category.name, slug=category.slug,
+                    parent_slug=category.parent.slug if category.parent else None,
+                )
+            )
             return APIResponse(data="added", success_code=2000)
 
         elif action == 'delete':
-            children = Category.objects.filter(parent__slug=slug)
-            children.delete()
-
             try:
                 category = Category.objects.get(slug=slug)
             except Category.DoesNotExist:
                 return APIResponse(data="Category not found", error_code=1, status=404)
+
+            all_cat_ids = _get_all_descendant_ids(category.id)
+            all_product_ids = Product.objects.filter(category_id__in=all_cat_ids).values_list('id', flat=True)
+
+            es = BaseInjector.get(CatalogSearchELK)
+            for cat_id in all_cat_ids:
+                es.remove(id=f"c_{cat_id}")
+            for pid in all_product_ids:
+                es.remove(id=f"p_{pid}")
 
             category.delete()
             return APIResponse(data="deleted", success_code=2000)
@@ -113,12 +132,24 @@ class ManageProductView(BaseView, generics.GenericAPIView):
                     error_code=1, status=404
                 )
             proID = f"405{random.randint(0, 9999999999):010d}"
-            Product.objects.create(
+            product = Product.objects.create(
                 product_id=proID,
                 name=name, slug=f"{slug}_{proID}",
                 category=category,
                 description=description,
                 price=price
+            )
+            es = BaseInjector.get(CatalogSearchELK)
+            es.add(
+                id=f"p_{product.id}",
+                doc_data=CatalogIndexModel(
+                    id=product.id, type="product",
+                    name=product.name, slug=product.slug,
+                    description=product.description,
+                    price=float(product.price) if product.price else None,
+                    category_slug=product.category.slug,
+                    category_name=product.category.name,
+                )
             )
             return APIResponse(data=f"added {proID}", success_code=2000, status=200)
 
@@ -130,6 +161,8 @@ class ManageProductView(BaseView, generics.GenericAPIView):
                     data="Product not found",
                     error_code=1, status=404
                 )
+            es = BaseInjector.get(CatalogSearchELK)
+            es.remove(id=f"p_{product.id}")
             product.delete()
             return APIResponse(data="deleted", success_code=2000, status=200)
 

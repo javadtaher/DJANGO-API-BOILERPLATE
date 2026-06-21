@@ -1,5 +1,7 @@
 from django.apps import AppConfig
 
+from .monitoring import metrics
+
 
 class DjangoDesignPatternAppConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'

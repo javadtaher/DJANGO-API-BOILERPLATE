@@ -1,6 +1,8 @@
+from django.core.cache import cache
+from rest_framework import generics
 from rest_framework.permissions import AllowAny
-from rest_framework.views import APIView
 
+from django_design_pattern_app.api.v1.users.users import BaseView
 from django_design_pattern_app.injector.base_injector import BaseInjector
 from django_design_pattern_app.middleware.exceptions import handle_exceptions
 from django_design_pattern_app.middleware.response import APIResponse
@@ -8,12 +10,18 @@ from django_design_pattern_app.models import Category, Product
 from django_design_pattern_app.modules.procat_search_module import CatalogSearchELK
 
 
-class CatalogSearchView(APIView):
+class CatalogSearchView(BaseView, generics.GenericAPIView):
     permission_classes = [AllowAny]
 
-    @handle_exceptions
+    # @handle_exceptions
     def post(self, request):
         q = request.data.get('q', '')
+        cache_key = f"catalog_search:{q}"
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return APIResponse(data=cached, success_code=2000)
+
         es = BaseInjector.get(CatalogSearchELK)
         result = es.search(query={
             "multi_match": {
@@ -56,6 +64,7 @@ class CatalogSearchView(APIView):
                 except Category.DoesNotExist:
                     pass
 
+        cache.set(cache_key, expanded, timeout=300)
         return APIResponse(data=expanded, success_code=2000)
 
 

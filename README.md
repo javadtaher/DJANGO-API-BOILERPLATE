@@ -69,7 +69,7 @@ A modular, production-ready Django REST API template with clean architecture pat
 - **Pagination, Filtering, Caching** built-in patterns
 - **Dockerized Infrastructure** (PostgreSQL, Redis, MinIO, RabbitMQ, ELK, Sentry)
 - **Management Commands** for superuser creation, SQL import, Kafka listener
-- **Prometheus Monitoring** via django-prometheus
+- **Prometheus Monitoring** via django-prometheus (rate, latency, errors, custom metrics)
 - **Comprehensive Middleware** for exception handling and standardized API responses
 - **Custom Signals** for event-driven actions
 - **Avatar Management** with MinIO storage (upload, download, delete)
@@ -82,6 +82,11 @@ A modular, production-ready Django REST API template with clean architecture pat
 - **Ngram Partial Search** — search every 2-3 character combination (e.g. "مو" finds "موبایل")
 - **Weighted Multi-Field Search** — prioritized fields (name, slug, description) with boost factors
 - **Recursive ES Cleanup** — deleting a category removes all descendant categories and products from ES automatically
+- **Prometheus Monitoring** — full request metrics (rate, latency, errors) via `/api/v1/metrics`
+- **Grafana Dashboards** — real-time visualization of request rate, response status, latency, and custom metrics
+- **Custom Prometheus Metrics** — custom counters like `app_users_total` for tracking application-specific data
+- **Sentry Error Tracking** — automatic exception capture with Django integration
+- **Redis Caching for Search** — catalog search results cached in Redis (5 min TTL) for reduced ES load
 
 ---
 
@@ -123,6 +128,9 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   │   ├── create_superuser.py         # Create superuser from env vars
 │   │   ├── import_sql.py               # Import SQL into PostgreSQL
 │   │   └── launch_queue_listener.py    # Start Kafka consumer thread
+│   │
+│   ├── monitoring/
+│   │   └── metrics.py                  # Custom Prometheus metrics (app_users_total)
 │   │
 │   ├── middleware/
 │   │   ├── exceptionhandler.py         # Custom DRF exception handler
@@ -202,6 +210,8 @@ A modular, production-ready Django REST API template with clean architecture pat
 │   ├── kibana/Dockerfile
 │   ├── minio/Dockerfile
 │   ├── postgres/Dockerfile + postgresql.conf
+│   ├── prometheus/
+│   │   └── prometheus.yml              # Prometheus scrape config
 │   ├── rabbitmq/Dockerfile
 │   ├── redis/Dockerfile
 │   └── sentry/Dockerfile
@@ -338,10 +348,10 @@ python manage.py runserver
 ## Running with Docker (Infrastructure Services)
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This starts: PostgreSQL, Redis, MinIO, RabbitMQ, Elasticsearch, Kibana.
+This starts: PostgreSQL, Redis, MinIO, RabbitMQ, Elasticsearch, Kibana, Prometheus, Grafana.
 
 To run the Django server locally (not in Docker):
 
@@ -425,6 +435,27 @@ catalog_index
 
 **Hybrid expansion:** When a search matches a category, the view also fetches all descendant products from the database and appends them to the results, enabling full subtree discovery from a single category match.
 
+**Redis caching:** Search results are cached in Redis for 5 minutes (`catalog_search:{query}`), reducing Elasticsearch load for repeated queries.
+
+### Sentry Setup
+
+Error tracking is configured in `settings/base.py`. Enable by setting your DSN:
+
+```
+SENTRY_SDK=https://your-dsn@o123.ingest.us.sentry.io/123456
+```
+
+Test with the `/sentry-debug/` endpoint (add temporarily to your root URL config):
+```python
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
+urlpatterns = [
+    path('sentry-debug/', trigger_error),
+    # ...
+]
+```
+
 ### Dependency Injection
 
 The project uses `injector` library for DI. Modules (Elasticsearch, MinIO, Redis, RabbitMQ, Kavenegar) are registered in `BaseInjector` and injected into repositories and services via `@inject` decorator.
@@ -442,6 +473,36 @@ The `@validate_serializer()` decorator intercepts requests, validates serializer
 All unhandled exceptions are captured by:
 1. `@handle_exceptions` decorator (Sentry + error response)
 2. Custom DRF exception handler (structured Persian error messages)
+
+### Monitoring Stack (Prometheus + Grafana + Sentry)
+
+The project integrates three monitoring layers:
+
+**Sentry** — Error tracking. Every unhandled exception is sent to Sentry via `capture_exception()`. Initialized in `settings/base.py` with Django integration. DSN is configured via the `SENTRY_SDK` environment variable.
+
+**Prometheus** — Metrics collection. Django exposes metrics at `GET /api/v1/metrics` via `django-prometheus`:
+- Request rate by method, view, transport
+- Response status codes (2xx, 4xx, 5xx)
+- Request latency (histogram) per view
+- Database operations per model (inserts, updates, deletes) via `ExportModelOperationsMixin`
+- Python runtime info (GC, memory)
+
+Custom metrics (e.g., `app_users_total`) can be defined in `monitoring/metrics.py` and updated via middleware or scheduled tasks.
+
+**Grafana** — Dashboard visualization. Connects to Prometheus as a data source for real-time charts and alerts.
+
+### Running the monitoring stack
+
+```bash
+docker compose up -d prometheus grafana
+```
+
+Start Django with all interfaces:
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+Prometheus scrapes `/api/v1/metrics` every 15s. Grafana is available at `http://localhost:3000` (admin/admin).
 
 ---
 
@@ -521,4 +582,6 @@ All services are containerized via Docker. Configuration files are in `infrastru
 | RabbitMQ | 5672, 15672 | Message broker |
 | Elasticsearch | 9200, 9300 | Full-text search |
 | Kibana | 5601 | Elasticsearch visualization |
+| Prometheus | 9090 | Metrics collection & querying |
+| Grafana | 3000 | Dashboard visualization |
 | Sentry | — | Error tracking |
